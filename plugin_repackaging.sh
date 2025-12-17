@@ -344,22 +344,214 @@ install_unzip(){
 # 函数：打印使用说明
 # =============================================================================
 print_usage() {
-	echo "usage: $0 [-p platform] [-s package_suffix] {market|github|local}"
-	echo "-p platform: python packages' platform. Using for crossing repacking."
-	echo "        For example: -p manylinux2014_x86_64 or -p manylinux2014_aarch64"
-	echo "-s package_suffix: The suffix name of the output offline package."
-	echo "        For example: -s linux-amd64 or -s linux-arm64"
+	echo "用法 (Usage): $0 [-p platform] [-s package_suffix] [-i] {market|github|local}"
+	echo ""
+	echo "选项 (Options):"
+	echo "  -p platform         Python 包平台标识，用于跨平台打包"
+	echo "                      Python package platform identifier for cross-platform packaging"
+	echo "                      示例 (Examples):"
+	echo "                        -p manylinux2014_x86_64"
+	echo "                        -p manylinux2014_aarch64"
+	echo "                        -p macosx_11_0_arm64"
+	echo ""
+	echo "  -s package_suffix   输出包的自定义后缀名"
+	echo "                      Custom suffix name for output package"
+	echo "                      示例 (Examples):"
+	echo "                        -s linux-amd64"
+	echo "                        -s linux-arm64"
+	echo ""
+	echo "  -i                   强制进入交互模式"
+	echo "                      Force interactive mode"
+	echo ""
+	echo "来源类型 (Source Types):"
+	echo "  market               从 Dify 官方市场下载 (Download from Dify Marketplace)"
+	echo "  github               从 GitHub Releases 下载 (Download from GitHub Releases)"
+	echo "  local                从本地文件重新打包 (Repackage from local file)"
+	echo ""
+	echo "交互模式 (Interactive Mode):"
+	echo "  不带任何参数运行脚本将自动进入交互模式"
+	echo "  Run the script without any arguments to enter interactive mode:"
+	echo "    $0"
+	echo ""
+	echo "  或使用 -i 选项强制进入交互模式"
+	echo "  Or use -i option to force interactive mode:"
+	echo "    $0 -i"
+	echo ""
+	echo "示例 (Examples):"
+	echo "  $0 market langgenius agent 0.0.9"
+	echo "  $0 -p manylinux_2_17_x86_64 market antv visualization 0.1.7"
+	echo "  $0 github junjiem/dify-plugin-agent-mcp_sse 0.0.1 agent-mcp_see.difypkg"
+	echo "  $0 local ./db_query.difypkg"
+	echo "  $0"
 	exit 1
 }
 
 # =============================================================================
-# 主程序：解析命令行参数
+# 函数：读取用户输入（带默认值和验证）
+# 参数：
+#   $1: 提示信息
+#   $2: 变量名（用于存储输入值）
+#   $3: 默认值（可选）
+#   $4: 是否必填（true/false，默认 false）
 # =============================================================================
+read_input() {
+	local prompt="$1"
+	local var_name="$2"
+	local default_value="$3"
+	local required="${4:-false}"
+	local input_value=""
+	
+	# 构建提示信息（包含默认值）
+	if [ -n "$default_value" ]; then
+		prompt="${prompt} [默认: ${default_value}]"
+	fi
+	
+	# 循环读取输入，直到满足要求
+	while true; do
+		echo -n "${prompt}: "
+		read input_value
+		
+		# 如果输入为空且有默认值，使用默认值
+		if [ -z "$input_value" ] && [ -n "$default_value" ]; then
+			input_value="$default_value"
+		fi
+		
+		# 如果输入为空且必填，提示重新输入
+		if [ -z "$input_value" ] && [ "$required" = "true" ]; then
+			echo "错误：此字段为必填项，请输入！"
+			echo "Error: This field is required, please enter a value!"
+			continue
+		fi
+		
+		# 如果输入为空且非必填，允许为空
+		if [ -z "$input_value" ] && [ "$required" = "false" ]; then
+			break
+		fi
+		
+		# 输入有效，退出循环
+		break
+	done
+	
+	# 将输入值赋给指定的变量
+	eval "$var_name='$input_value'"
+}
+
+# =============================================================================
+# 函数：交互式模式
+# 功能：通过交互式提示收集用户输入，然后执行相应的打包操作
+# =============================================================================
+interactive_mode() {
+	echo "=========================================="
+	echo "  Dify 插件重新打包工具 - 交互模式"
+	echo "  Dify Plugin Repackaging Tool - Interactive Mode"
+	echo "=========================================="
+	echo ""
+	
+	# 询问是否使用跨平台打包
+	echo "是否使用跨平台打包？(Do you want to use cross-platform packaging?)"
+	echo "  1) 否，使用当前平台 (No, use current platform)"
+	echo "  2) 是，指定目标平台 (Yes, specify target platform)"
+	echo -n "请选择 (Please choose) [1]: "
+	read platform_choice
+	
+	# 如果选择跨平台打包，询问目标平台
+	if [ "$platform_choice" = "2" ]; then
+		echo ""
+		echo "常用平台标识 (Common platform identifiers):"
+		echo "  - manylinux2014_x86_64 / manylinux_2_17_x86_64 (Linux x86_64)"
+		echo "  - manylinux2014_aarch64 / manylinux_2_17_aarch64 (Linux ARM64)"
+		echo "  - macosx_10_9_x86_64 (macOS Intel)"
+		echo "  - macosx_11_0_arm64 (macOS Apple Silicon)"
+		echo ""
+		read_input "请输入目标平台标识 (Enter target platform identifier)" platform_input "" false
+		
+		if [ -n "$platform_input" ]; then
+			PIP_PLATFORM="--platform ${platform_input} --only-binary=:all:"
+		fi
+	fi
+	
+	echo ""
+	
+	# 询问是否自定义输出包后缀
+	echo "是否自定义输出包的后缀名？(Do you want to customize the output package suffix?)"
+	echo "  1) 否，使用默认后缀 'offline' (No, use default suffix 'offline')"
+	echo "  2) 是，自定义后缀 (Yes, customize suffix)"
+	echo -n "请选择 (Please choose) [1]: "
+	read suffix_choice
+	
+	if [ "$suffix_choice" = "2" ]; then
+		read_input "请输入自定义后缀 (Enter custom suffix)" PACKAGE_SUFFIX "offline" false
+	fi
+	
+	echo ""
+	
+	# 选择来源类型
+	echo "请选择插件来源 (Please select plugin source):"
+	echo "  1) Dify 官方市场 (Dify Marketplace)"
+	echo "  2) GitHub Releases"
+	echo "  3) 本地文件 (Local file)"
+	echo -n "请选择 (Please choose) [1]: "
+	read source_choice
+	
+	# 根据选择收集相应参数并调用函数
+	case "$source_choice" in
+		"1"|"")
+			# Dify 市场
+			echo ""
+			echo "=== 从 Dify 市场下载插件 ==="
+			echo "=== Download from Dify Marketplace ==="
+			read_input "插件作者 (Plugin author)" PLUGIN_AUTHOR "" true
+			read_input "插件名称 (Plugin name)" PLUGIN_NAME "" true
+			read_input "插件版本 (Plugin version)" PLUGIN_VERSION "" true
+			
+			# 调用 market 函数（需要构造参数）
+			market "market" "$PLUGIN_AUTHOR" "$PLUGIN_NAME" "$PLUGIN_VERSION"
+			;;
+		"2")
+			# GitHub
+			echo ""
+			echo "=== 从 GitHub Releases 下载插件 ==="
+			echo "=== Download from GitHub Releases ==="
+			read_input "GitHub 仓库路径 (GitHub repo path, e.g., owner/repo)" GITHUB_REPO "" true
+			read_input "Release 标签 (Release tag, e.g., v0.0.1)" RELEASE_TAG "" true
+			read_input "Assets 文件名 (Assets filename, must include .difypkg suffix)" ASSETS_NAME "" true
+			
+			# 调用 github 函数
+			github "github" "$GITHUB_REPO" "$RELEASE_TAG" "$ASSETS_NAME"
+			;;
+		"3")
+			# 本地文件
+			echo ""
+			echo "=== 从本地文件重新打包 ==="
+			echo "=== Repackage from local file ==="
+			read_input "插件包路径 (Plugin package path)" LOCAL_PATH "" true
+			
+			# 调用 _local 函数
+			_local "local" "$LOCAL_PATH"
+			;;
+		*)
+			echo "错误：无效的选择！(Error: Invalid choice!)"
+			exit 1
+			;;
+	esac
+}
+
+# =============================================================================
+# 主程序：解析命令行参数或进入交互模式
+# =============================================================================
+
+# 检查是否有参数
+# 如果没有参数，进入交互模式
+if [ $# -eq 0 ]; then
+	interactive_mode
+	exit 0
+fi
 
 # 使用 getopts 解析选项参数
 # -p: 指定 Python 包平台（用于跨平台打包）
 # -s: 指定输出包的后缀名
-while getopts "p:s:" opt; do
+# -i: 强制进入交互模式
+while getopts "p:s:i" opt; do
 	case "$opt" in
 		# -p 选项：设置 pip 平台参数
 		# --platform: 指定目标平台
@@ -368,6 +560,9 @@ while getopts "p:s:" opt; do
 		
 		# -s 选项：设置输出包的后缀名
 		s) PACKAGE_SUFFIX="${OPTARG}" ;;
+		
+		# -i 选项：强制进入交互模式
+		i) interactive_mode; exit 0 ;;
 		
 		# 其他选项：打印使用说明并退出
 		*) print_usage; exit 1 ;;
@@ -378,8 +573,13 @@ done
 # OPTIND 是 getopts 的内部变量，表示下一个要处理的参数索引
 shift $((OPTIND - 1))
 
-# 调试输出：打印第一个位置参数（来源类型）
-echo "$1"
+# 检查是否还有位置参数（来源类型）
+if [ $# -eq 0 ]; then
+	echo "错误：请指定插件来源类型 (market/github/local) 或使用 -i 进入交互模式"
+	echo "Error: Please specify plugin source type (market/github/local) or use -i for interactive mode"
+	print_usage
+	exit 1
+fi
 
 # 根据第一个位置参数（来源类型）调用相应的函数
 case "$1" in
@@ -397,6 +597,8 @@ case "$1" in
 		;;
 	*)
 		# 未知来源类型，打印使用说明并退出
+		echo "错误：未知的来源类型 '$1'"
+		echo "Error: Unknown source type '$1'"
 		print_usage
 		exit 1
 esac

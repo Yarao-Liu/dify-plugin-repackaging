@@ -59,6 +59,44 @@ apk add unzip
 brew install unzip
 ```
 
+## 关于 dify-plugin 工具
+
+### 工具来源
+
+项目中的 `dify-plugin-xxxx` 二进制文件（如 `dify-plugin-linux-amd64`、`dify-plugin-darwin-arm64` 等）是 **Dify 官方提供的 CLI 工具**，用于打包 Dify 插件。
+
+这些工具是 `dify-plugin-daemon` 项目的一部分，由 Dify 官方团队开发和维护。
+
+### 源码位置
+
+`dify-plugin` CLI 工具的源码通常位于以下位置：
+
+1. **Dify 官方 GitHub 组织**：https://github.com/langgenius
+   - 查找 `dify-plugin-daemon` 或相关的插件开发工具仓库
+
+2. **Dify 官方文档**：https://docs.dify.ai
+   - 在插件开发文档中可能包含工具源码的链接
+
+3. **Dify 官方发布页面**：
+   - 工具的二进制文件可能通过 GitHub Releases 或其他官方渠道发布
+
+### 工具说明
+
+- **用途**：用于将插件源码打包成 `.difypkg` 格式的插件包
+- **版本要求**：Python 版本应与 `dify-plugin-daemon` 中的版本一致（当前为 3.12.x）
+- **平台支持**：提供 Linux (amd64/arm64) 和 macOS (amd64/arm64) 四个平台的二进制文件
+
+### 如何获取最新版本
+
+如果需要获取最新版本的 `dify-plugin` 工具，建议：
+
+1. 访问 Dify 官方 GitHub 组织页面
+2. 查找 `dify-plugin-daemon` 或相关仓库
+3. 查看 Releases 页面下载对应平台的二进制文件
+4. 替换项目中的旧版本文件
+
+**注意**：本项目中已包含这些工具的二进制文件，可直接使用。如需更新或了解最新信息，请参考 Dify 官方文档和仓库。
+
 ## 快速开始
 
 ### Docker 方式
@@ -114,6 +152,25 @@ docker run -v %cd%:/app dify-plugin-repackaging ./plugin_repackaging.sh -p manyl
 
 ### 命令行方式
 
+#### Windows 用户注意
+
+**推荐使用 Git Bash：**
+
+在 Windows 系统上，推荐使用 **Git Bash** 来运行此脚本。Git Bash 提供了完整的 bash 环境，可以正常运行脚本。
+
+1. **安装 Git for Windows**（如果尚未安装）：
+   - 下载地址：https://git-scm.com/download/win
+   - 安装时会自动包含 Git Bash
+
+2. **使用 Git Bash 运行脚本：**
+   - 右键点击项目文件夹，选择 "Git Bash Here"
+   - 或在 Git Bash 中切换到项目目录
+   - 然后按照下面的步骤操作
+
+**或者使用 WSL（Windows Subsystem for Linux）：**
+
+如果您使用 WSL，可以按照 Linux 的方式运行脚本。
+
 #### 1. 克隆仓库
 
 ```bash
@@ -123,12 +180,32 @@ cd dify-plugin-repackaging
 
 #### 2. 添加执行权限
 
+**Linux/macOS/Git Bash/WSL：**
+
 ```bash
 chmod +x plugin_repackaging.sh
 chmod +x dify-plugin-*
 ```
 
+**注意：** 在 Windows 的 Git Bash 中，`chmod` 命令主要用于设置脚本的执行权限，但 Windows 文件系统可能不完全支持 Unix 权限。如果遇到权限问题，可以直接运行脚本：
+
+```bash
+bash plugin_repackaging.sh
+```
+
 #### 3. 运行脚本
+
+**交互模式（推荐新手）：**
+
+```bash
+# 直接运行脚本，进入交互模式
+./plugin_repackaging.sh
+
+# 或使用 bash 命令
+bash plugin_repackaging.sh
+```
+
+**命令行模式：**
 
 根据不同的来源类型，使用相应的命令（详见下方使用说明）。
 
