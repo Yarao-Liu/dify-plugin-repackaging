@@ -1,138 +1,377 @@
-## Dify 1.0 Plugin Downloading and Repackaging
-### How To Use With Docker
+# Dify 1.0 Plugin Downloading and Repackaging
 
-1.change param in dockerfile
+一个用于下载和重新打包 Dify 插件的工具，支持从 Dify 市场、GitHub 或本地文件重新打包插件为离线安装包。
 
-```dockerfile
-CMD ["./plugin_repackaging.sh", "-p", "manylinux_2_17_x86_64", "market", "antv", "visualization", "0.1.7"] 
+A tool for downloading and repackaging Dify plugins, supporting repackaging plugins from Dify Marketplace, GitHub, or local files into offline installation packages.
+
+## 目录 / Table of Contents
+
+- [功能特性](#功能特性)
+- [系统要求](#系统要求)
+- [快速开始](#快速开始)
+  - [Docker 方式](#docker-方式)
+  - [命令行方式](#命令行方式)
+- [使用说明](#使用说明)
+  - [从 Dify 市场下载并重新打包](#从-dify-市场下载并重新打包)
+  - [从 GitHub 下载并重新打包](#从-github-下载并重新打包)
+  - [本地插件包重新打包](#本地插件包重新打包)
+  - [平台交叉打包](#平台交叉打包)
+- [Dify 平台配置](#dify-平台配置)
+- [安装插件](#安装插件)
+- [常见问题](#常见问题)
+
+## 功能特性
+
+- ✅ 支持从 Dify 官方市场下载插件
+- ✅ 支持从 GitHub Releases 下载插件
+- ✅ 支持本地插件包重新打包
+- ✅ 自动下载并内嵌 Python 依赖包（离线安装）
+- ✅ 支持跨平台打包（Linux/macOS, amd64/arm64）
+- ✅ Docker 容器化支持
+
+## 系统要求
+
+### 操作系统
+
+- Linux amd64/aarch64
+- macOS x86_64/arm64
+
+### Python 版本
+
+Python 版本应与 `dify-plugin-daemon` 中的版本一致，当前为 **3.12.x**
+
+### 依赖工具
+
+**注意：** 脚本使用 `yum` 安装 `unzip` 命令，这只适用于基于 RPM 的 Linux 系统（如 Red Hat Enterprise Linux、CentOS、Fedora、Oracle Linux）。在较新的分发版中，`yum` 已被 `dnf` 替代。
+
+**Note:** The script uses `yum` to install `unzip`, which is only available on RPM-based Linux systems (such as Red Hat Enterprise Linux, CentOS, Fedora, and Oracle Linux), and is now replaced by `dnf` in latest versions.
+
+如果您的系统不支持 `yum` 或 `dnf`，请提前安装 `unzip` 命令：
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install unzip
+
+# Alpine
+apk add unzip
+
+# macOS (使用 Homebrew)
+brew install unzip
 ```
 
-2.build
+## 快速开始
+
+### Docker 方式
+
+#### 1. 修改 Dockerfile 中的参数
+
+编辑 `Dockerfile`，修改默认命令参数：
+
+```dockerfile
+CMD ["./plugin_repackaging.sh", "-p", "manylinux_2_17_x86_64", "market", "antv", "visualization", "0.1.7"]
+```
+
+参数说明：
+- `-p manylinux_2_17_x86_64`: 指定目标平台（可选）
+- `market`: 来源类型（market/github/local）
+- `antv visualization 0.1.7`: 插件信息（作者、名称、版本）
+
+#### 2. 构建镜像
+
 ```bash
 docker build -t dify-plugin-repackaging .
 ```
 
+#### 3. 运行容器
 
-3.run
+**Linux/macOS:**
 
-linux
 ```bash
 docker run -v $(pwd):/app dify-plugin-repackaging
 ```
-windows
+
+**Windows:**
+
 ```cmd
 docker run -v %cd%:/app dify-plugin-repackaging
 ```
-4.override CMD(opt)
 
-linux
+#### 4. 覆盖默认命令（可选）
+
+如果需要使用不同的参数，可以在运行时覆盖：
+
+**Linux/macOS:**
+
 ```bash
 docker run -v $(pwd):/app dify-plugin-repackaging ./plugin_repackaging.sh -p manylinux_2_17_x86_64 market antv visualization 0.1.7
 ```
 
-### Prerequisites
+**Windows:**
 
-Operating System: Linux amd64/aarch64, MacOS x86_64/arm64
-
-**Notes**: The script uses `yum` to install `unzip` which is only avialable on RPM-based Linux systems(such as `Red Hat Enterprise Linux`, `CentOS`, `Fedora`, and `Oracle Linux`), and is now replaced by `dnf` in latest version. To use the script on other distributions, please install `unzip` command in advance.
-
-**注意：**本脚本使用`yum`安装`unzip`命令，这只适用于基于RPM的Linux系统（如`Red Hat Enterprise Linux`, `CentOS`, `Fedora`, and `Oracle Linux`）。并且在较新的分发版中，它已被`dnf`所替代。
-因此，当使用其他Linux分发版或者无法使用`yum`时，请事先安装`unzip`命令。
-
-Python version: Should be as the same as the version in `dify-plugin-daemon` which is currently 3.12.x
-
-
-#### Clone
-```shell
-git clone https://github.com/junjiem/dify-plugin-repackaging.git
+```cmd
+docker run -v %cd%:/app dify-plugin-repackaging ./plugin_repackaging.sh -p manylinux_2_17_x86_64 market antv visualization 0.1.7
 ```
 
+### 命令行方式
 
+#### 1. 克隆仓库
 
-### Description
+```bash
+git clone https://github.com/junjiem/dify-plugin-repackaging.git
+cd dify-plugin-repackaging
+```
 
-#### From the Dify Marketplace downloading and repackaging
+#### 2. 添加执行权限
+
+```bash
+chmod +x plugin_repackaging.sh
+chmod +x dify-plugin-*
+```
+
+#### 3. 运行脚本
+
+根据不同的来源类型，使用相应的命令（详见下方使用说明）。
+
+## 使用说明
+
+### 从 Dify 市场下载并重新打包
+
+从 Dify 官方市场下载插件并重新打包为离线安装包。
 
 ![market](images/market.png)
 
-##### Example
+#### 使用示例
 
 ![market-example](images/market-example.png)
 
-```shell
+```bash
 ./plugin_repackaging.sh market langgenius agent 0.0.9
 ```
 
+**命令格式：**
+
+```bash
+./plugin_repackaging.sh market [插件作者] [插件名称] [插件版本]
+```
+
+**参数说明：**
+- `market`: 来源类型
+- `[插件作者]`: 插件作者名称（如 `langgenius`）
+- `[插件名称]`: 插件名称（如 `agent`）
+- `[插件版本]`: 插件版本号（如 `0.0.9`）
+
+**输出文件：**
+
+生成的文件名为：`[作者]-[插件名]_[版本]-offline.difypkg`
+
+例如：`langgenius-agent_0.0.9-offline.difypkg`
+
 ![langgenius-agent](images/langgenius-agent.png)
 
+### 从 GitHub 下载并重新打包
 
-
-#### From the Github downloading and repackaging
+从 GitHub Releases 下载插件并重新打包。
 
 ![github](images/github.png)
 
-##### Example
+#### 使用示例
 
 ![github-example](images/github-example.png)
 
-```shell
+```bash
 ./plugin_repackaging.sh github junjiem/dify-plugin-agent-mcp_sse 0.0.1 agent-mcp_see.difypkg
 ```
 
+**命令格式：**
+
+```bash
+./plugin_repackaging.sh github [GitHub仓库] [Release标签] [Assets文件名]
+```
+
+**参数说明：**
+- `github`: 来源类型
+- `[GitHub仓库]`: GitHub 仓库路径（如 `junjiem/dify-plugin-agent-mcp_sse`）或完整 URL
+- `[Release标签]`: Release 版本标签（如 `0.0.1` 或 `v0.0.1`）
+- `[Assets文件名]`: Release 中的资产文件名，需包含 `.difypkg` 后缀（如 `agent-mcp_see.difypkg`）
+
+**输出文件：**
+
+生成的文件名为：`[Assets文件名（不含后缀）]-[Release标签].difypkg`
+
+例如：`agent-mcp_see-0.0.1.difypkg`
+
 ![junjiem-mcp_sse](images/junjiem-mcp_sse.png)
 
+### 本地插件包重新打包
 
-
-#### Local Dify package repackaging
+对本地已有的 `.difypkg` 文件进行重新打包，添加离线依赖。
 
 ![local](images/local.png)
 
-##### Example
+#### 使用示例
 
-```shell
+```bash
 ./plugin_repackaging.sh local ./db_query.difypkg
 ```
 
+**命令格式：**
+
+```bash
+./plugin_repackaging.sh local [插件包路径]
+```
+
+**参数说明：**
+- `local`: 来源类型
+- `[插件包路径]`: 本地 `.difypkg` 文件的路径（相对路径或绝对路径）
+
+**输出文件：**
+
+生成的文件名为：`[原文件名（不含后缀）]-offline.difypkg`
+
+例如：`db_query-offline.difypkg`
+
 ![db_query](images/db_query.png)
 
-#### Platform Crossing Repacking
+### 平台交叉打包
 
-For repacking the plugins in different platforms between operating and running environment, 
-please using `-p` option with a pip platform string.
+当运行环境和目标环境平台不同时，可以使用 `-p` 选项指定目标平台。
 
-Typically, uses `manylinux2014_x86_64` for plugins running on an `x86_64/amd64` OS, 
-and `manylinux2014_aarch64` for `aarch64/arm64`.
+**命令格式：**
 
-### Update Dify platform env  Dify平台放开限制
+```bash
+./plugin_repackaging.sh -p [平台标识] [来源类型] [其他参数...]
+```
 
-- your .env configuration file: Change `FORCE_VERIFYING_SIGNATURE` to `false` , the Dify platform will allow the installation of all plugins that are not listed in the Dify Marketplace.
+**平台标识：**
 
-- your .env configuration file: Change `PLUGIN_MAX_PACKAGE_SIZE` to `524288000` , and the Dify platform will allow the installation of plug-ins within 500M.
+- `manylinux2014_x86_64` 或 `manylinux_2_17_x86_64`: 用于 x86_64/amd64 架构的 Linux 系统
+- `manylinux2014_aarch64` 或 `manylinux_2_17_aarch64`: 用于 aarch64/arm64 架构的 Linux 系统
+- `macosx_10_9_x86_64`: 用于 Intel 架构的 macOS 系统
+- `macosx_11_0_arm64`: 用于 Apple Silicon 架构的 macOS 系统
 
-- your .env configuration file: Change `NGINX_CLIENT_MAX_BODY_SIZE` to `500M` , and the Nginx client will allow uploading content up to 500M in size.
+**使用示例：**
 
+在 Linux 系统上为 macOS ARM64 打包：
 
+```bash
+./plugin_repackaging.sh -p macosx_11_0_arm64 market langgenius agent 0.0.9
+```
 
-- 在 .env 配置文件将 `FORCE_VERIFYING_SIGNATURE` 改为 `false` ，Dify 平台将允许安装所有未在 Dify Marketplace 上架（审核）的插件。
+在 macOS 上为 Linux x86_64 打包：
 
-- 在 .env 配置文件将 `PLUGIN_MAX_PACKAGE_SIZE` 增大为 `524288000`，Dify 平台将允许安装 500M 大小以内的插件。
+```bash
+./plugin_repackaging.sh -p manylinux_2_17_x86_64 market antv visualization 0.1.7
+```
 
-- 在 .env 配置文件将 `NGINX_CLIENT_MAX_BODY_SIZE` 增大为 `500M`，Nginx客户端将允许上传 500M 大小以内的内容。
+**自定义输出文件名后缀：**
 
+使用 `-s` 选项可以自定义输出文件的后缀：
 
+```bash
+./plugin_repackaging.sh -p manylinux_2_17_x86_64 -s linux-amd64 market antv visualization 0.1.7
+```
 
+输出文件：`antv-visualization_0.1.7-linux-amd64.difypkg`
 
-### Installing Plugins via Local 通过本地安装插件
+## Dify 平台配置
 
-Visit the Dify platform's plugin management page, choose Local Package File to complete installation.
+为了安装重新打包的插件，需要在 Dify 平台的 `.env` 配置文件中进行以下设置：
 
-访问 Dify 平台的插件管理页，选择通过本地插件完成安装。
+### 1. 禁用签名验证
+
+允许安装未在 Dify Marketplace 上架的插件：
+
+```env
+FORCE_VERIFYING_SIGNATURE=false
+```
+
+**English:** Change `FORCE_VERIFYING_SIGNATURE` to `false` to allow installation of all plugins that are not listed in the Dify Marketplace.
+
+### 2. 增加插件包大小限制
+
+允许安装更大的插件包（最大 500MB）：
+
+```env
+PLUGIN_MAX_PACKAGE_SIZE=524288000
+```
+
+**English:** Change `PLUGIN_MAX_PACKAGE_SIZE` to `524288000` (500MB) to allow installation of plugins within 500M.
+
+### 3. 增加 Nginx 上传大小限制
+
+允许上传更大的文件（最大 500MB）：
+
+```env
+NGINX_CLIENT_MAX_BODY_SIZE=500M
+```
+
+**English:** Change `NGINX_CLIENT_MAX_BODY_SIZE` to `500M` to allow uploading content up to 500M in size.
+
+**注意：** 修改配置后需要重启 Dify 服务才能生效。
+
+## 安装插件
+
+### 通过本地文件安装
+
+1. 访问 Dify 平台的插件管理页面
+2. 选择 "Local Package File"（本地插件包文件）
+3. 上传重新打包后的 `.difypkg` 文件
+4. 完成安装
 
 ![install_plugin_via_local](./images/install_plugin_via_local.png)
 
+## 常见问题
 
+### Q: 下载失败怎么办？
 
-### Star history
+**A:** 请检查：
+- 网络连接是否正常
+- 插件作者、名称和版本是否正确
+- GitHub 仓库和 Release 信息是否正确
+
+### Q: 打包失败怎么办？
+
+**A:** 请检查：
+- Python 版本是否为 3.12.x
+- 是否已安装 `unzip` 命令
+- 磁盘空间是否充足
+- 插件包的 `requirements.txt` 是否有效
+
+### Q: 如何查看脚本的详细使用说明？
+
+**A:** 运行脚本时不带参数或使用错误的参数：
+
+```bash
+./plugin_repackaging.sh
+```
+
+### Q: 支持哪些 Python 包平台？
+
+**A:** 支持所有 pip 支持的平台标识，常用平台包括：
+- `manylinux2014_x86_64` / `manylinux_2_17_x86_64` (Linux x86_64)
+- `manylinux2014_aarch64` / `manylinux_2_17_aarch64` (Linux ARM64)
+- `macosx_10_9_x86_64` (macOS Intel)
+- `macosx_11_0_arm64` (macOS Apple Silicon)
+
+### Q: 可以自定义 pip 镜像源吗？
+
+**A:** 可以通过环境变量设置：
+
+```bash
+export PIP_MIRROR_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+./plugin_repackaging.sh market langgenius agent 0.0.9
+```
+
+### Q: 可以自定义 GitHub 或市场 API 地址吗？
+
+**A:** 可以通过环境变量设置：
+
+```bash
+export GITHUB_API_URL=https://github.com
+export MARKETPLACE_API_URL=https://marketplace.dify.ai
+./plugin_repackaging.sh market langgenius agent 0.0.9
+```
+
+## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=junjiem/dify-plugin-repackaging&type=Date)](https://star-history.com/#junjiem/dify-plugin-repackaging&Date)
-
